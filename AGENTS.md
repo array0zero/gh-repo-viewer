@@ -21,7 +21,6 @@ Vite + TypeScript を使用し、取得結果をブラウザに10分間キャッ
 
 ## 検証
 
-- ビルド: `npm.cmd run build`
-- テスト: `npm.cmd test`（Vitest + happy-dom、通信はモック）
+- ビルド: `npm run build`
+- テスト: `npm test`（Vitest + happy-dom、通信はモック）
 - 完了条件: 上記 2 つが通り、docs/specs/ の受入条件を満たすこと
-- PowerShell では npm.cmd を使う。ファイル読み込みは -Encoding utf8 を付ける
