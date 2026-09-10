@@ -1,18 +1,16 @@
 import { fetchRepositories, GitHubError, type Repository } from './github';
-import { cacheIdentity, clearCache, readCache, readToken, saveCache, saveToken } from './storage';
+import { cacheIdentity, clearCache, readCache, saveCache } from './storage';
 
 export function mountApp(root: HTMLElement): void {
   root.innerHTML = `
     <main>
       <header><span class="eyebrow">YOUR GITHUB, AT A GLANCE</span><h1>Repo Viewer<span class="dot">.</span></h1>
-      <p>自分のリポジトリを、すばやく見つける。</p></header>
+      <p>公開リポジトリを、すばやく見つける。</p></header>
       <section class="panel" aria-label="取得設定">
         <form id="credentials">
-          <label>GitHub ユーザー名<input id="username" name="username" placeholder="octocat" autocomplete="username" required pattern="[a-zA-Z0-9][a-zA-Z0-9-]{0,38}" /></label>
-          <label>トークン <span class="optional">任意</span><input id="token" name="token" type="password" autocomplete="off" spellcheck="false" placeholder="非公開リポジトリも表示する" /></label>
+          <label>GitHub ユーザー名<input id="username" name="username" placeholder="octocat" autocomplete="username" pattern="[a-zA-Z0-9][a-zA-Z0-9-]{0,38}" /></label>
           <button id="fetch" type="submit">リポジトリを取得</button>
         </form>
-        <p class="hint">トークンあり: トークン所有者のリポジトリを取得します。トークンと取得結果はこのブラウザに保存されます。</p>
         <div class="cache-row"><span>キャッシュ有効期間: 10 分</span><button id="clear-cache" class="secondary" type="button">キャッシュを破棄</button></div>
       </section>
       <div class="toolbar">
@@ -29,7 +27,6 @@ export function mountApp(root: HTMLElement): void {
     </main>`;
   const get = <T extends HTMLElement>(id: string) => root.querySelector<T>(`#${id}`)!;
   const username = get<HTMLInputElement>('username');
-  const token = get<HTMLInputElement>('token');
   const search = get<HTMLInputElement>('search');
   const language = get<HTMLSelectElement>('language');
   const sort = get<HTMLSelectElement>('sort');
@@ -45,10 +42,6 @@ export function mountApp(root: HTMLElement): void {
   let busy = false;
   let source = '';
   let bypassCache = false;
-  token.value = readToken();
-  token.addEventListener('input', () => {
-    warning.textContent = saveToken(token.value.trim()) ? '' : 'ブラウザにトークンを保存できません。この画面内では利用できます。';
-  });
 
   function render(): void {
     const query = search.value.trim().toLowerCase();
@@ -93,10 +86,9 @@ export function mountApp(root: HTMLElement): void {
     event.preventDefault();
     if (busy) return;
     const user = username.value.trim();
-    const secret = token.value.trim();
-    if (!user) { error.textContent = '自分の GitHub ユーザー名を入力してください。'; return; }
+    if (!user) { error.textContent = 'GitHub ユーザー名を入力してください。'; return; }
     busy = true;
-    submit.disabled = clear.disabled = username.disabled = token.disabled = true;
+    submit.disabled = clear.disabled = username.disabled = true;
     submit.textContent = '取得中…';
     list.setAttribute('aria-busy', 'true');
     error.textContent = ''; warning.textContent = '';
@@ -104,10 +96,9 @@ export function mountApp(root: HTMLElement): void {
     status.textContent = 'リポジトリを取得しています…';
     rate.textContent = 'API 残り回数: —';
     try {
-      if (!saveToken(secret)) warning.textContent = 'トークンを保存できませんでした。';
-      const identity = await cacheIdentity(user, secret);
+      const identity = cacheIdentity(user);
       const cached = bypassCache ? null : readCache(identity);
-      const data = cached ?? await fetchRepositories(user, secret);
+      const data = cached ?? await fetchRepositories(user);
       if (!cached && !saveCache(identity, data)) warning.textContent += ' 取得結果を保存できませんでした。';
       bypassCache = false;
       repositories = data.repositories;
@@ -129,7 +120,7 @@ export function mountApp(root: HTMLElement): void {
       status.textContent = '入力を確認して再取得できます。';
     } finally {
       busy = false;
-      submit.disabled = clear.disabled = username.disabled = token.disabled = false;
+      submit.disabled = clear.disabled = username.disabled = false;
       submit.textContent = 'リポジトリを取得';
       list.setAttribute('aria-busy', 'false');
     }

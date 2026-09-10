@@ -1,26 +1,10 @@
 import { isRepository, type RepoResult } from './github';
 
-export const TOKEN_KEY = 'gh-repo-viewer:token';
-export const CACHE_KEY = 'gh-repo-viewer:cache:v1';
+export const CACHE_KEY = 'gh-repo-viewer:cache:v2';
 export const CACHE_TTL = 10 * 60 * 1000;
 
-export function readToken(): string {
-  try { return localStorage.getItem(TOKEN_KEY) ?? ''; } catch { return ''; }
-}
-
-export function saveToken(token: string): boolean {
-  try {
-    if (token) localStorage.setItem(TOKEN_KEY, token);
-    else localStorage.removeItem(TOKEN_KEY);
-    return true;
-  } catch { return false; }
-}
-
-// Store a digest rather than duplicating the token in cache keys or values.
-export async function cacheIdentity(username: string, token: string): Promise<string> {
-  const bytes = new TextEncoder().encode(JSON.stringify([username.toLowerCase(), token]));
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+export function cacheIdentity(username: string): string {
+  return username.trim().toLowerCase();
 }
 
 export function readCache(identity: string, now = Date.now()): RepoResult | null {

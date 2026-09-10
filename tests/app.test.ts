@@ -1,7 +1,7 @@
-﻿import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { mountApp } from '../src/app';
 import { fetchRepositories, type Repository } from '../src/github';
-import { CACHE_KEY, CACHE_TTL, TOKEN_KEY, cacheIdentity, readCache, saveCache } from '../src/storage';
+import { CACHE_KEY, CACHE_TTL, cacheIdentity, readCache, saveCache } from '../src/storage';
 
 const repo = (overrides: Partial<Repository> = {}): Repository => ({
   id: 1, name: 'alpha', html_url: 'https://github.com/me/alpha', description: '説明',
@@ -38,6 +38,8 @@ describe('取得とカード表示', () => {
     const [url, options] = mockFetch.mock.calls[0];
     expect(String(url)).toContain('/users/me/repos?');
     expect(String(url)).toContain('per_page=100');
+    expect(new URL(String(url)).searchParams.get('type')).toBe('owner');
+    expect(new URL(String(url)).searchParams.has('affiliation')).toBe(false);
     expect(options?.headers).not.toHaveProperty('Authorization');
     expect(names()).toEqual(['alpha']);
     expect(element('repositories').textContent).toContain('説明');
@@ -45,20 +47,32 @@ describe('取得とカード表示', () => {
     expect(document.querySelector('h2 a')?.getAttribute('href')).toBe('https://github.com/me/alpha');
     expect(element('rate').textContent).toBe('API 残り回数: 59');
   });
-  it('認証 API にトークンと owner 制約を送り、非公開を表示しトークンを復元する', async () => {
-    input('token', 'example-token');
-    expect(localStorage.getItem(TOKEN_KEY)).toBe('example-token');
+  it('初期ユーザー名は空で、入力欄と保存処理に認証情報を持たない', async () => {
+    const storage = localStorage;
+    const getItem = vi.fn((key: string) => storage.getItem(key));
+    const setItem = vi.fn((key: string, value: string) => storage.setItem(key, value));
+    vi.stubGlobal('localStorage', { getItem, setItem, removeItem: (key: string) => storage.removeItem(key) });
     mountApp(element('app'));
-    expect(element<HTMLInputElement>('token').value).toBe('example-token');
+    expect(element<HTMLInputElement>('username').value).toBe('');
+    expect(document.querySelector('#token, input[type="password"]')).toBeNull();
+    expect(element('app').textContent).not.toContain('トークン');
+    expect(getItem).not.toHaveBeenCalled();
     input('username', 'me');
-    mockFetch.mockResolvedValue(response([repo({ private: true })]));
+    mockFetch.mockResolvedValue(response());
     await submit();
-    expect(String(mockFetch.mock.calls[0][0])).toContain('/user/repos?');
-    expect(String(mockFetch.mock.calls[0][0])).toContain('affiliation=owner');
-    expect(mockFetch.mock.calls[0][1]?.headers).toHaveProperty('Authorization', 'Bearer example-token');
-    expect(element('repositories').textContent).toContain('非公開');
-    input('token', '');
-    expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
+    expect(setItem.mock.calls.map(([key]) => key)).toEqual([CACHE_KEY]);
+  });
+  it.each(['', '   '])('ユーザー名が空ならメッセージを表示し通信しない (%s)', async value => {
+    input('username', value);
+    if (value === '') element<HTMLFormElement>('credentials').requestSubmit();
+    else await submit();
+    expect(element('error').textContent).toContain('ユーザー名を入力してください');
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(element<HTMLButtonElement>('fetch').disabled).toBe(false);
+    mockFetch.mockResolvedValue(response());
+    input('username', 'me');
+    await submit();
+    expect(names()).toEqual(['alpha']);
   });
   it('0 件と null の説明・言語を扱う', async () => {
     mockFetch.mockResolvedValueOnce(response([]));
@@ -126,21 +140,37 @@ describe('永続キャッシュ', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
     await submit(); expect(mockFetch).toHaveBeenCalledTimes(2);
   });
-  it('ユーザー名、トークン、認証有無が変わったら使い回さない', async () => {
-    mockFetch.mockImplementation(async () => response());
+  it('異なるユーザー名では前回の結果を使い回さない', async () => {
+    mockFetch.mockResolvedValueOnce(response());
+    mockFetch.mockResolvedValueOnce(response([repo({ id: 2, name: 'other-repo' })]));
     await submit();
     input('username', 'other'); await submit();
-    input('token', 'first-token'); await submit();
-    expect(localStorage.getItem(CACHE_KEY)).not.toContain('first-token');
-    input('token', 'second-token'); await submit();
-    input('token', ''); await submit();
-    expect(mockFetch).toHaveBeenCalledTimes(5);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(names()).toEqual(['other-repo']);
+    expect(String(mockFetch.mock.calls[1][0])).toContain('/users/other/repos?');
+  });
+  it('ユーザー名の大文字小文字と前後の空白は同じキャッシュを使う', async () => {
+    mockFetch.mockResolvedValue(response());
+    await submit();
+    input('username', ' ME '); await submit();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(cacheIdentity(' ME ')).toBe('me');
+  });
+  it('v1 形式のキャッシュを再利用しない', async () => {
+    localStorage.setItem('gh-repo-viewer:cache:v1', JSON.stringify({
+      identity: cacheIdentity('me'), savedAt: Date.now(),
+      data: { repositories: [repo({ name: 'old-result' })], remaining: 10, reset: null, truncated: false },
+    }));
+    mockFetch.mockResolvedValue(response());
+    await submit();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(names()).toEqual(['alpha']);
   });
   it('破損キャッシュを無視する', async () => {
     localStorage.setItem(CACHE_KEY, '{broken');
     mockFetch.mockImplementation(async () => response());
     await submit(); expect(names()).toEqual(['alpha']);
-    const identity = await cacheIdentity('me', '');
+    const identity = cacheIdentity('me');
     saveCache(identity, { repositories: [repo()], remaining: 10, reset: null, truncated: false });
     const entry = JSON.parse(localStorage.getItem(CACHE_KEY)!);
     entry.data.repositories[0].html_url = 'javascript:alert(1)';
@@ -163,7 +193,6 @@ describe('永続キャッシュ', () => {
 
 describe('失敗後も操作可能', () => {
   it.each([
-    [401, {}, 'トークンが無効'],
     [404, {}, 'ユーザーが存在しません'],
     [403, { 'x-ratelimit-remaining': '0' }, 'リセット時刻:'],
     [429, { 'x-ratelimit-remaining': '0' }, 'リセット時刻:'],
@@ -178,7 +207,7 @@ describe('失敗後も操作可能', () => {
       expect(element('rate').textContent).toContain('0');
     }
     expect(localStorage.getItem(CACHE_KEY)).toBeNull();
-    for (const id of ['fetch', 'clear-cache', 'username', 'token']) expect(element<HTMLInputElement>(id).disabled).toBe(false);
+    for (const id of ['fetch', 'clear-cache', 'username']) expect(element<HTMLInputElement>(id).disabled).toBe(false);
     mockFetch.mockResolvedValueOnce(response()); await submit();
     expect(names()).toEqual(['alpha']); expect(element('error').textContent).toBe('');
   });
@@ -203,7 +232,7 @@ describe('失敗後も操作可能', () => {
 });
 
 describe('ページネーション', () => {
-  const next = { link: '<https://api.github.com/user/repos?page=2>; rel="next"' };
+  const next = { link: '<https://api.github.com/users/me/repos?page=2>; rel="next"' };
   it('100 件より多い場合は次ページもカード表示する', async () => {
     mockFetch.mockResolvedValueOnce(response(Array.from({ length: 100 }, (_, id) => repo({ id, name: `repo-${id}` })), 200, next));
     mockFetch.mockResolvedValueOnce(response([repo({ id: 100, name: 'last' })], 200, { 'x-ratelimit-remaining': '58' }));
@@ -232,8 +261,8 @@ describe('ページネーション', () => {
   it('Link の外部 URL を追わず、API ホスト内でページ番号を増やす', async () => {
     mockFetch.mockResolvedValueOnce(response([repo()], 200, { link: '<https://evil.example/>; rel="next"' }));
     mockFetch.mockResolvedValueOnce(response([]));
-    await fetchRepositories('me', 'test-token');
-    expect(String(mockFetch.mock.calls[1][0])).toMatch(/^https:\/\/api.github.com\/user\/repos\?/);
+    await fetchRepositories('me');
+    expect(String(mockFetch.mock.calls[1][0])).toMatch(/^https:\/\/api.github.com\/users\/me\/repos\?/);
   });
 });
 

@@ -38,13 +38,12 @@ export function isRepository(value: unknown): value is Repository {
     && typeof repo.updated_at === 'string' && Number.isFinite(Date.parse(repo.updated_at));
 }
 
-export async function fetchRepositories(username: string, token: string): Promise<RepoResult> {
+export async function fetchRepositories(username: string): Promise<RepoResult> {
   const result: RepoResult = { repositories: [], remaining: null, reset: null, truncated: false };
   const headers: Record<string, string> = { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
-  if (token) headers.Authorization = `Bearer ${token}`;
   for (let page = 1; page <= 3; page++) {
-    const url = new URL(token ? 'https://api.github.com/user/repos' : `https://api.github.com/users/${encodeURIComponent(username)}/repos`);
-    url.search = new URLSearchParams({ per_page: '100', page: String(page), sort: 'updated', direction: 'desc', ...(token ? { affiliation: 'owner' } : { type: 'owner' }) }).toString();
+    const url = new URL(`https://api.github.com/users/${encodeURIComponent(username)}/repos`);
+    url.search = new URLSearchParams({ per_page: '100', page: String(page), sort: 'updated', direction: 'desc', type: 'owner' }).toString();
     let response: Response;
     try {
       response = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(30_000) });
@@ -55,12 +54,11 @@ export async function fetchRepositories(username: string, token: string): Promis
     result.reset = numberHeader(response.headers, 'x-ratelimit-reset');
     if (!response.ok) {
       let message = `GitHub API エラー（${response.status}）。時間をおいて再度取得してください。`;
-      if (response.status === 401) message = 'トークンが無効です。トークンを確認してください。';
-      else if (response.status === 404) message = 'ユーザーが存在しません。ユーザー名を確認してください。';
+      if (response.status === 404) message = 'ユーザーが存在しません。ユーザー名を確認してください。';
       else if (response.status === 429 || (response.status === 403 && result.remaining === 0)) {
         const reset = result.reset === null ? '不明（時間をおいて再試行してください）' : new Date(result.reset * 1000).toLocaleString('ja-JP');
         message = `API のレート制限を超過しました。リセット時刻: ${reset}`;
-      } else if (response.status === 403) message = 'アクセスが拒否されました。トークンの権限を確認するか、時間をおいて再度取得してください。';
+      } else if (response.status === 403) message = 'アクセスが拒否されました。時間をおいて再度取得してください。';
       throw new GitHubError(message, result.remaining, result.reset);
     }
     let data: unknown;
