@@ -23,7 +23,7 @@ export function mountApp(root: HTMLElement): void {
       <p id="warning" role="status" class="hint"></p>
       <p id="error" role="alert"></p>
       <section id="repositories" class="grid" aria-label="リポジトリ一覧" aria-busy="false"></section>
-      <footer>GitHub Repo Viewer · 最大 300 件を表示</footer>
+      <footer>gh-repo-viewer</footer>
     </main>`;
   const get = <T extends HTMLElement>(id: string) => root.querySelector<T>(`#${id}`)!;
   const username = get<HTMLInputElement>('username');
