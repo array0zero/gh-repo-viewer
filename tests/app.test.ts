@@ -1,4 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import packageJson from '../package.json';
 import { mountApp } from '../src/app';
 import { fetchRepositories, type Repository } from '../src/github';
 import { CACHE_KEY, CACHE_TTL, cacheIdentity, readCache, saveCache } from '../src/storage';
@@ -30,6 +31,12 @@ beforeEach(() => {
   input('username', 'me');
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
+
+describe('フッター', () => {
+  it('package.json のバージョンをアプリ名の隣に表示する', () => {
+    expect(element('app').querySelector('footer')?.textContent).toBe(`gh-repo-viewer v${packageJson.version}`);
+  });
+});
 
 describe('取得とカード表示', () => {
   it('公開 API を認証なしで呼び、全項目と残回数を表示する', async () => {
@@ -265,4 +272,3 @@ describe('ページネーション', () => {
     expect(String(mockFetch.mock.calls[1][0])).toMatch(/^https:\/\/api.github.com\/users\/me\/repos\?/);
   });
 });
-

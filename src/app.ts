@@ -1,3 +1,4 @@
+import { version } from '../package.json';
 import { fetchRepositories, GitHubError, type Repository } from './github';
 import { cacheIdentity, clearCache, readCache, saveCache } from './storage';
 
@@ -23,7 +24,7 @@ export function mountApp(root: HTMLElement): void {
       <p id="warning" role="status" class="hint"></p>
       <p id="error" role="alert"></p>
       <section id="repositories" class="grid" aria-label="リポジトリ一覧" aria-busy="false"></section>
-      <footer>gh-repo-viewer</footer>
+      <footer>gh-repo-viewer v${version}</footer>
     </main>`;
   const get = <T extends HTMLElement>(id: string) => root.querySelector<T>(`#${id}`)!;
   const username = get<HTMLInputElement>('username');
