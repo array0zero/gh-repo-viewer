@@ -8,7 +8,7 @@
 | `src/storage.ts` | `cacheIdentity(username: string): string` がユーザー名を trim・小文字化する。`readCache(identity: string, now = Date.now()): RepoResult | null` が有効なキャッシュを返す。`saveCache(identity: string, data: RepoResult): boolean` が保存、`clearCache(): boolean` が削除の成否を返す。公開定数は `CACHE_KEY`（`gh-repo-viewer:cache:v2`）、`CACHE_TTL`（600000ミリ秒）。最新の成功結果1件のみ保持する。 |
 | `src/style.css` | ダーク配色の共通変数、余白・境界・文字の階層、カード下端のメタデータ配置、44px以上の操作要素とフォーカス表示、720px以下の1列表示、長文の折り返し、フッターの11px・中央揃え。公開関数なし。 |
 | `index.html` | アプリのマウント先とエントリーポイント。 |
-| `tests/app.test.ts` | Vitest + happy-dom とモック fetch で取得、空欄、キャッシュ、表示操作、障害復帰、ページネーションを検証する。 |
+| `tests/app.test.ts` | Vitest + happy-dom とモック fetch で取得、空欄、キャッシュ、表示操作、障害復帰、ページネーションを検証する。フッターの全文が `package.json` の `version` を使った表示と一致することも検証する。公開関数なし。 |
 | `vite.config.ts` | Vitest の DOM 環境とモック復元を設定する。 |
 | `tsconfig.json` | TypeScript の型検査と JSON モジュール読み込みの設定。 |
 | `package.json` | アプリのバージョン（フッター表示の参照元）、開発、ビルド、プレビュー、テストのコマンドと開発依存。 |
