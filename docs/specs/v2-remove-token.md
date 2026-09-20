@@ -35,7 +35,8 @@ PAT を貼ることを期待できないため。
 ## フッター（Issue #1）
 
 画面下部のリポジトリ一覧の後にフッターを表示する。
-表示文字列は `gh-repo-viewer` のみとし、既存の 11px の小さな文字で表示する。
+表示文字列は `gh-repo-viewer v{version}` とし、`package.json` の `version` を使う（Issue #5）。
+既存の 11px・中央揃え・配置を維持する。
 
 ## 変更しないもの
 
@@ -68,7 +69,7 @@ PAT を貼ることを期待できないため。
 18. `docs/walkthrough.md` が変更後の処理の流れに更新されている
 19. `docs/modules.md` が変更後のファイル構成に更新されている
 20. README にトークンに関する記述が残っていない
-21. 画面下部のフッターに `gh-repo-viewer` のみが 11px で表示される
+21. 画面下部のフッターに `gh-repo-viewer v{version}` が表示され、バージョンは `package.json` の `version` と一致する。既存の 11px・中央揃え・配置を維持する（Issue #5）
 
 ## 備考
 
