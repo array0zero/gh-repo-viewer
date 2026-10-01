@@ -38,6 +38,54 @@ describe('フッター', () => {
   });
 });
 
+describe('一覧の件数表示', () => {
+  it('未取得時は操作しても件数を表示せず、取得失敗後も非表示にする', async () => {
+    expect(element('count').hidden).toBe(true);
+    expect(element('count').textContent).toBe('');
+    input('search', 'alpha');
+    input('language', '');
+    input('sort', 'name');
+    expect(element('count').hidden).toBe(true);
+    expect(element('count').textContent).toBe('');
+    mockFetch.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await submit();
+    expect(element('count').hidden).toBe(true);
+  });
+
+  it.each([false, true])('取得結果の直前に件数を表示し、絞り込みと並び替えに追従する（キャッシュ: %s）', async cached => {
+    const repositories = [repo(), repo({ id: 2, name: 'beta' }), repo({ id: 3, name: 'zeta', language: 'Rust' })];
+    if (cached) {
+      saveCache(cacheIdentity('me'), { repositories, remaining: 59, reset: null, truncated: false });
+    } else {
+      mockFetch.mockResolvedValueOnce(response(repositories));
+    }
+    await submit();
+    const expectCount = (visible: number) => {
+      expect(element('count').hidden).toBe(false);
+      expect(element('count').textContent).toBe(`${visible} 件 / 全 3 件`);
+      expect(names()).toHaveLength(visible);
+    };
+    expect(element('repositories').previousElementSibling).toBe(element('count'));
+    expectCount(3);
+    input('search', 'TA'); expectCount(2);
+    input('language', 'TypeScript'); expectCount(1);
+    for (const sort of ['stars', 'name', 'updated']) {
+      input('sort', sort); expectCount(1);
+    }
+    input('search', 'missing'); expectCount(0);
+    input('search', ''); expectCount(2);
+    input('language', ''); expectCount(3);
+    expect(mockFetch).toHaveBeenCalledTimes(cached ? 0 : 1);
+  });
+
+  it('取得したリポジトリが0件でも件数を表示する', async () => {
+    mockFetch.mockResolvedValueOnce(response([]));
+    await submit();
+    expect(element('count').hidden).toBe(false);
+    expect(element('count').textContent).toBe('0 件 / 全 0 件');
+  });
+});
+
 describe('取得とカード表示', () => {
   it('公開 API を認証なしで呼び、全項目と残回数を表示する', async () => {
     mockFetch.mockImplementation(async () => response());

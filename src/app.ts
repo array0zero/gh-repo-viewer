@@ -19,10 +19,11 @@ export function mountApp(root: HTMLElement): void {
         <label>言語<select id="language"><option value="">すべての言語</option></select></label>
         <label>並び替え<select id="sort"><option value="updated">更新日順</option><option value="stars">スター数順</option><option value="name">名前順</option></select></label>
       </div>
-      <div class="summary"><strong id="count">0 件</strong><span id="rate">API 残り回数: —</span></div>
+      <div class="summary"><span id="rate">API 残り回数: —</span></div>
       <p id="status" role="status" aria-live="polite">ユーザー名を入力してリポジトリを取得してください。</p>
       <p id="warning" role="status" class="hint"></p>
       <p id="error" role="alert"></p>
+      <strong id="count" hidden aria-live="polite"></strong>
       <section id="repositories" class="grid" aria-label="リポジトリ一覧" aria-busy="false"></section>
       <footer>gh-repo-viewer v${version}</footer>
     </main>`;
@@ -71,7 +72,8 @@ export function mountApp(root: HTMLElement): void {
       }
       card.append(top, description, metadata); list.append(card);
     }
-    get('count').textContent = `${visible.length} / ${repositories.length} 件`;
+    get('count').hidden = !loaded;
+    get('count').textContent = loaded ? `${visible.length} 件 / 全 ${repositories.length} 件` : '';
     if (loaded) status.textContent = repositories.length === 0 ? 'リポジトリは 0 件です。' : visible.length === 0 ? '条件に一致するリポジトリはありません。' : source;
   }
 

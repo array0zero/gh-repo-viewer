@@ -34,8 +34,8 @@ button:disabled { opacity: .55; cursor: wait; }
 .secondary:hover:not(:disabled) { background: #243348; }
 .toolbar { display: grid; grid-template-columns: minmax(0, 1fr) 190px 170px; gap: 20px; margin: 32px 0 24px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
 .summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
-.summary strong { color: #e3eaf4; font-size: 16px; font-variant-numeric: tabular-nums; }
-#rate { padding: 4px 10px; border-radius: 6px; background: var(--surface); }
+#count { color: #e3eaf4; font-size: 16px; font-variant-numeric: tabular-nums; }
+#rate { margin-left: auto; padding: 4px 10px; border-radius: 6px; background: var(--surface); }
 #status { color: var(--muted); font-size: 13px; line-height: 1.8; margin: 12px 0; overflow-wrap: anywhere; }
 #error { color: #ffd0d0; background: #361e2b; border: 1px solid #794350; border-radius: 8px; padding: 16px; line-height: 1.8; overflow-wrap: anywhere; }
 #error:empty, #warning:empty { display: none; }
